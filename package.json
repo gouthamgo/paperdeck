@@ -2,7 +2,7 @@
   "name": "paperdeck",
   "version": "1.0.0",
   "description": "Tactile edge-docked notes & desk workspace",
-  "author": "Goutham <gouthamgo@github.com>",
+  "author": "PaperDeck",
   "main": "electron/main.js",
   "private": true,
   "scripts": {

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { DeckViewMode } from '../types/note';
 import { paperSound } from '../lib/audio';
-import { Volume2, VolumeX, Plus, Command, LayoutGrid, Layers, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, Plus, Command, LayoutGrid, Layers, Maximize2, Minimize2 } from 'lucide-react';
 
 interface NavbarProps {
   viewMode: DeckViewMode;
@@ -21,6 +21,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeNoteCount,
 }) => {
   const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const toggleSound = () => {
     const next = !isMuted;
@@ -29,6 +30,17 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (!next) {
       paperSound.playClickSound();
     }
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+    }
+    paperSound.playClickSound();
   };
 
   return (
@@ -86,6 +98,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Fullscreen Button */}
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 rounded-xl bg-desk-surface hover:bg-desk-surface/80 border border-desk-rule text-ink-muted hover:text-ink transition-colors cursor-pointer"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Desk'}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+
           {/* Sound Toggle */}
           <button
             onClick={toggleSound}

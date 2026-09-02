@@ -15,8 +15,8 @@ function createWindow() {
     title: 'PaperDeck',
     titleBarStyle: 'hiddenInset', // Native macOS traffic lights inset
     trafficLightPosition: { x: 16, y: 18 },
-    vibrancy: 'under-window',
-    visualEffectState: 'active',
+    // An opaque backgroundColor paints over vibrancy, so the two can't coexist.
+    // The paper desk surface is opaque by design — keep the solid colour.
     backgroundColor: '#EFEBE3',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -27,11 +27,18 @@ function createWindow() {
   });
 
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-  const startUrl = isDev
-    ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, '../out/index.html')}`;
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:3000');
+  } else {
+    // loadFile handles asar paths and URL-escaping; a hand-built file:// URL
+    // breaks as soon as the install path contains a space or '#'.
+    mainWindow.loadFile(path.join(__dirname, '../out/index.html'));
+  }
 
-  mainWindow.loadURL(startUrl);
+  // Without this a failed load is completely silent — just an empty window.
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error(`PaperDeck: load failed (${errorCode} ${errorDescription}) for ${validatedURL}`);
+  });
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -39,7 +46,9 @@ function createWindow() {
 
   // Open external links in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (/^https?:\/\//i.test(url)) {
+      shell.openExternal(url);
+    }
     return { action: 'deny' };
   });
 
@@ -49,24 +58,35 @@ function createWindow() {
 }
 
 // Global Carbon-Style Hotkeys for macOS
-function registerShortcuts() {
-  // Option + Command + N -> Focus window and trigger new note
-  globalShortcut.register('Alt+Command+N', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-      mainWindow.webContents.send('trigger-new-note');
-    }
-  });
+function sendToWindow(channel) {
+  // On macOS the app stays alive with no windows (⌘W), so recreate one rather
+  // than letting the hotkey become permanently inert.
+  if (!mainWindow) {
+    createWindow();
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow.webContents.send(channel);
+    });
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+  mainWindow.webContents.send(channel);
+}
 
-  // Option + Command + A -> Toggle All Notes
-  globalShortcut.register('Alt+Command+A', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-      mainWindow.webContents.send('trigger-all-notes');
+function registerShortcuts() {
+  const shortcuts = [
+    ['Alt+Command+N', 'trigger-new-note'],
+    ['Alt+Command+A', 'trigger-all-notes'],
+  ];
+
+  for (const [accelerator, channel] of shortcuts) {
+    // register() returns false when the OS or another app already owns the chord,
+    // or when Accessibility permission was denied.
+    const registered = globalShortcut.register(accelerator, () => sendToWindow(channel));
+    if (!registered) {
+      console.warn(`PaperDeck: could not register ${accelerator} — another app may own it.`);
     }
-  });
+  }
 }
 
 // Native macOS Menu Bar
@@ -92,12 +112,14 @@ function createMenu() {
         {
           label: 'New Note',
           accelerator: 'Alt+Cmd+N',
-          click: () => mainWindow?.webContents.send('trigger-new-note'),
+          registerAccelerator: false,
+          click: () => sendToWindow('trigger-new-note'),
         },
         {
           label: 'All Notes / Desk Board',
           accelerator: 'Alt+Cmd+A',
-          click: () => mainWindow?.webContents.send('trigger-all-notes'),
+          registerAccelerator: false,
+          click: () => sendToWindow('trigger-all-notes'),
         },
         { type: 'separator' },
         { role: 'close' },

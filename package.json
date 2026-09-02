@@ -16,14 +16,15 @@
   "build": {
     "appId": "com.gouthamgo.paperdeck",
     "productName": "PaperDeck",
-    "copyright": "Copyright © 2026 PaperDeck",
+    "copyright": "Copyright \u00a9 2026 PaperDeck",
     "directories": {
       "output": "dist"
     },
     "files": [
       "out/**/*",
       "electron/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/**/*"
     ],
     "mac": {
       "category": "public.app-category.productivity",
@@ -52,17 +53,8 @@
       ]
     }
   },
-  "dependencies": {
-    "canvas-confetti": "^1.9.3",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.475.0",
-    "next": "^14.2.24",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "tailwind-merge": "^2.6.0"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20.17.17",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
@@ -71,7 +63,11 @@
     "cross-env": "^7.0.3",
     "electron": "^34.2.0",
     "electron-builder": "^25.1.8",
+    "lucide-react": "^0.475.0",
+    "next": "^14.2.24",
     "postcss": "^8.5.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",
     "wait-on": "^8.0.2"

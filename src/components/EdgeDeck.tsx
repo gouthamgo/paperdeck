@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { NoteItem, NOTE_COLORS } from '../types/note';
+import { sortNotes } from '../lib/noteStore';
 import { paperSound } from '../lib/audio';
 import { NoteEditor } from './NoteEditor';
 import { Plus, Pin, ChevronRight, LayoutGrid } from 'lucide-react';
@@ -13,6 +14,8 @@ interface EdgeDeckProps {
   onNewNote: () => void;
   onShareNote: (note: NoteItem) => void;
   onOpenAllNotes: () => void;
+  /** False while a modal is stacked above the deck, so Esc dismisses that instead. */
+  escapeEnabled?: boolean;
 }
 
 export const EdgeDeck: React.FC<EdgeDeckProps> = ({
@@ -22,12 +25,13 @@ export const EdgeDeck: React.FC<EdgeDeckProps> = ({
   onNewNote,
   onShareNote,
   onOpenAllNotes,
+  escapeEnabled = true,
 }) => {
   const [isFanned, setIsFanned] = useState(false);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const activeNotes = notes.filter(n => !n.isArchived);
+  const activeNotes = sortNotes(notes.filter(n => !n.isArchived));
   const expandedNote = activeNotes.find(n => n.id === expandedNoteId);
 
   const handleMouseEnterEdge = () => {
@@ -53,8 +57,30 @@ export const EdgeDeck: React.FC<EdgeDeckProps> = ({
 
   const handleCloseExpanded = () => {
     setExpandedNoteId(null);
+    // Leaving the deck fanned would strand it over the desk: the pointer is
+    // already outside the container, so no further mouseleave will fire.
+    setIsFanned(false);
     paperSound.playClickSound();
   };
+
+  // The pending un-fan timer must not outlive the component.
+  useEffect(() => () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  }, []);
+
+  // Esc docks an edge-expanded note, matching what the editor footer promises.
+  useEffect(() => {
+    if (!expandedNoteId || !escapeEnabled) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        handleCloseExpanded();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedNoteId, escapeEnabled]);
 
   return (
     <div
@@ -83,9 +109,19 @@ export const EdgeDeck: React.FC<EdgeDeckProps> = ({
         {!isFanned && !expandedNoteId ? (
           /* STATE 1: DORMANT REST PILL */
           <div
+            role="button"
+            tabIndex={0}
+            aria-label="Open note deck"
             onClick={() => {
               setIsFanned(true);
               paperSound.playPaperFanSound();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsFanned(true);
+                paperSound.playPaperFanSound();
+              }
             }}
             className="group py-6 px-1.5 rounded-l-2xl bg-desk-surface hover:bg-white border-y border-l border-desk-rule shadow-xl flex flex-col items-center gap-2 cursor-pointer transition-all hover:pr-3"
             title="Slide pointer to right edge to fan notes"
@@ -114,7 +150,16 @@ export const EdgeDeck: React.FC<EdgeDeckProps> = ({
               return (
                 <div
                   key={note.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open note ${note.title || 'Untitled note'}`}
                   onClick={() => handleTabClick(note.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleTabClick(note.id);
+                    }
+                  }}
                   style={{
                     backgroundColor: color.paper,
                     color: color.ink,

@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { NoteItem, NOTE_COLORS, NoteColorName } from '../types/note';
 import { paperSound } from '../lib/audio';
-import { getTaskStats, toggleTaskInBody } from '../lib/noteStore';
-import { Search, Pin, Plus, Share2, Trash2, CheckCircle2, Circle, Sparkles, Filter } from 'lucide-react';
+import { getTaskStats, toggleTaskInBody, sortNotes } from '../lib/noteStore';
+import { Search, Pin, Plus, Share2, Trash2 } from 'lucide-react';
 
 interface DeskBoardProps {
   notes: NoteItem[];
@@ -25,17 +25,25 @@ export const DeskBoard: React.FC<DeskBoardProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedColor, setSelectedColor] = useState<string>('all');
+  const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
 
-  const filteredNotes = notes.filter(n => {
+  const openNote = (note: NoteItem) => {
+    onSelectNote(note);
+    paperSound.playPaperFanSound();
+  };
+
+  const activeNotes = notes.filter(n => !n.isArchived);
+
+  const filteredNotes = sortNotes(notes.filter(n => {
     if (n.isArchived) return false;
     const matchesSearch = 
       n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       n.body.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesColor = selectedColor === 'all' || n.colorName === selectedColor;
     return matchesSearch && matchesColor;
-  });
+  }));
 
-  const handleTaskCheckboxClick = (e: React.MouseEvent, note: NoteItem, lineIdx: number) => {
+  const handleTaskCheckboxClick = (e: React.SyntheticEvent, note: NoteItem, lineIdx: number) => {
     e.stopPropagation();
     const updatedBody = toggleTaskInBody(note.body, lineIdx);
     onUpdateNote({
@@ -96,7 +104,7 @@ export const DeskBoard: React.FC<DeskBoardProps> = ({
               : 'bg-desk-surface text-ink-muted hover:text-ink border border-desk-rule'
           }`}
         >
-          All Notes ({notes.length})
+          All Notes ({activeNotes.length})
         </button>
 
         {NOTE_COLORS.map((col) => (
@@ -140,15 +148,27 @@ export const DeskBoard: React.FC<DeskBoardProps> = ({
             return (
               <div
                 key={note.id}
-                onClick={() => {
-                  onSelectNote(note);
-                  paperSound.playPaperFanSound();
+                role="button"
+                tabIndex={0}
+                aria-label={`Open note ${note.title || 'Untitled Note'}`}
+                onClick={() => openNote(note)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openNote(note);
+                  }
                 }}
-                className="relative rounded-2xl p-6 curled-corner paper-lift hover:paper-lift-lg transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[260px] group hover:scale-[1.02]"
+                onMouseEnter={() => setHoveredNoteId(note.id)}
+                onMouseLeave={() => setHoveredNoteId(prev => (prev === note.id ? null : prev))}
+                onFocus={() => setHoveredNoteId(note.id)}
+                onBlur={() => setHoveredNoteId(prev => (prev === note.id ? null : prev))}
+                className="relative rounded-2xl p-6 curled-corner paper-lift hover:paper-lift-lg transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[260px] group"
                 style={{
                   backgroundColor: color.paper,
                   color: color.ink,
-                  transform: `rotate(${note.tilt}deg)`,
+                  // An inline transform beats Tailwind's hover:scale utility, so the
+                  // lift has to be composed here alongside the tilt.
+                  transform: `rotate(${note.tilt}deg) scale(${hoveredNoteId === note.id ? 1.02 : 1})`,
                 }}
               >
                 <div>
@@ -176,6 +196,7 @@ export const DeskBoard: React.FC<DeskBoardProps> = ({
                         }}
                         className="p-1 rounded hover:bg-black/10 transition-colors"
                         title="Share Note"
+                        aria-label="Share note"
                       >
                         <Share2 className="w-3.5 h-3.5" />
                       </button>
@@ -187,6 +208,7 @@ export const DeskBoard: React.FC<DeskBoardProps> = ({
                         }}
                         className="p-1 rounded hover:bg-black/10 text-rose-900 transition-colors"
                         title="Delete Note"
+                        aria-label="Delete note"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -209,7 +231,17 @@ export const DeskBoard: React.FC<DeskBoardProps> = ({
                         return (
                           <div
                             key={idx}
+                            role="checkbox"
+                            aria-checked={isDone}
+                            tabIndex={0}
                             onClick={(e) => handleTaskCheckboxClick(e, note, idx)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleTaskCheckboxClick(e, note, idx);
+                              }
+                            }}
                             className="flex items-start gap-1.5 hover:opacity-100 cursor-pointer"
                           >
                             <span className="font-mono text-sm leading-none mt-0.5">

@@ -21,6 +21,8 @@ module.exports = {
           DEFAULT: '#221F1A',
           2: '#5F584C',
           3: '#8C8375',
+          muted: '#5F584C',
+          subtle: '#8C8375',
           dark: '#F1ECE2',
           'dark-2': '#B4AB9B',
           'dark-3': '#8A8172',
@@ -61,6 +63,17 @@ module.exports = {
         display: ['"Bricolage Grotesque"', 'Karla', 'sans-serif'],
         hand: ['Caveat', '"Bradley Hand"', 'cursive'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      },
+      keyframes: {
+        // Opacity only: a lingering transform would turn these wrappers into
+        // containing blocks for any position:fixed descendant.
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+      },
+      animation: {
+        fadeIn: 'fadeIn 0.18s ease-out',
       },
       boxShadow: {
         'lift': '0 10px 26px rgba(60, 48, 30, 0.16)',

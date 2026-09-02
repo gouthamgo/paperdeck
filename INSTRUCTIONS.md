@@ -57,5 +57,49 @@ npm run dist:mac
 
 ## 🔐 4. Apple Developer Signing & Distribution
 
-* **Automatic Signing:** Electron Builder automatically detects your Apple Developer Certificate in macOS Keychain (`Apple Development: gouthamm08@icloud.com`) and signs all binaries during `npm run dist:mac`.
-* **Distribution:** Upload `dist/PaperDeck-1.0.0-arm64.dmg` to Whop, Stripe, or your website for customers to download and drag into `/Applications`.
+> ⚠️ **The current build is not distributable.** `npm run dist:mac` picks up the
+> `Apple Development: …` certificate from the Keychain. That certificate is only
+> valid on machines provisioned to this developer account — `spctl -a -t exec`
+> rejects the resulting `.app`, and anyone who downloads the DMG sees
+> *"PaperDeck is damaged and can't be opened."*
+
+To ship to customers you need two things the build does not yet have:
+
+1. **A `Developer ID Application` certificate** (not `Apple Development`). Add it
+   explicitly so the build fails loudly rather than silently signing with the
+   wrong identity:
+   ```json
+   "mac": {
+     "identity": "Developer ID Application: <Your Name> (<TEAM_ID>)"
+   }
+   ```
+2. **Notarization**, which Apple requires for Gatekeeper to accept the app:
+   ```json
+   "mac": {
+     "notarize": { "teamId": "<TEAM_ID>" }
+   }
+   ```
+   with `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` in the
+   environment.
+
+Verify before uploading anywhere:
+```bash
+codesign -dvv --entitlements - dist/mac-arm64/PaperDeck.app
+spctl -a -vvv -t exec dist/mac-arm64/PaperDeck.app   # must say "accepted"
+```
+
+Only once `spctl` reports **accepted** is `dist/PaperDeck-1.0.0-arm64.dmg` safe to
+put in front of customers.
+
+---
+
+## 🎨 5. Known Gaps
+
+* **No app icon.** There is no `build/icon.icns`, so the Dock, Finder, and DMG all
+  show the stock Electron atom. Add a 1024×1024 `build/icon.icns` and
+  `"icon": "build/icon.icns"` under `build.mac`.
+* **`isArchived` is never set.** The field is read when filtering but nothing
+  writes `true` to it — there is no archive action yet.
+* **Dark mode is scaffolded but unreachable.** `tailwind.config.js` sets
+  `darkMode: 'class'` and defines a full dark palette, but no `dark:` variant is
+  used anywhere and nothing ever adds the `.dark` class.

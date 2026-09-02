@@ -13,7 +13,9 @@ class PaperSoundEngine {
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      // Autoplay policy keeps the context suspended until a real user gesture;
+      // the rejection is expected and must not surface as an unhandled promise.
+      this.ctx.resume().catch(() => {});
     }
     return this.ctx;
   }
@@ -58,6 +60,12 @@ class PaperSoundEngine {
     gain.connect(ctx.destination);
 
     whiteNoise.start(now);
+    whiteNoise.stop(now + 0.12);
+    whiteNoise.onended = () => {
+      whiteNoise.disconnect();
+      filter.disconnect();
+      gain.disconnect();
+    };
   }
 
   // 2. Pencil / Pen Checkbox Tick Sound
@@ -107,6 +115,12 @@ class PaperSoundEngine {
     noiseGain.connect(ctx.destination);
 
     noise.start(now);
+    noise.stop(now + 0.04);
+    noise.onended = () => {
+      noise.disconnect();
+      filter.disconnect();
+      noiseGain.disconnect();
+    };
   }
 
   // 3. Paper Crumple / Tear Sound
@@ -140,6 +154,12 @@ class PaperSoundEngine {
     gain.connect(ctx.destination);
 
     noise.start(now);
+    noise.stop(now + 0.2);
+    noise.onended = () => {
+      noise.disconnect();
+      filter.disconnect();
+      gain.disconnect();
+    };
   }
 
   // 4. Soft UI Navigation Click

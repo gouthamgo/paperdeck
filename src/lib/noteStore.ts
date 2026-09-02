@@ -50,20 +50,63 @@ export const INITIAL_NOTES: NoteItem[] = [
   }
 ];
 
+function isNoteItem(value: unknown): value is NoteItem {
+  const n = value as NoteItem;
+  return (
+    !!n &&
+    typeof n === 'object' &&
+    typeof n.id === 'string' &&
+    typeof n.title === 'string' &&
+    typeof n.body === 'string' &&
+    typeof n.tilt === 'number' &&
+    typeof n.isPinned === 'boolean' &&
+    typeof n.isArchived === 'boolean' &&
+    typeof n.createdAt === 'string' &&
+    typeof n.updatedAt === 'string' &&
+    NOTE_COLORS.some(c => c.name === n.colorName)
+  );
+}
+
 export function getStoredNotes(): NoteItem[] {
   if (typeof window === 'undefined') return INITIAL_NOTES;
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : INITIAL_NOTES;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return INITIAL_NOTES;
+    const parsed: unknown = JSON.parse(raw);
+    // Valid JSON of the wrong shape would otherwise crash every render on mount,
+    // with nothing left able to rewrite the key. Drop bad entries instead.
+    if (!Array.isArray(parsed)) return INITIAL_NOTES;
+    const valid = parsed.filter(isNoteItem);
+    return valid.length > 0 ? valid : INITIAL_NOTES;
   } catch {
     return INITIAL_NOTES;
   }
 }
 
-export function saveNotes(notes: NoteItem[]) {
-  if (typeof window !== 'undefined') {
+export function saveNotes(notes: NoteItem[]): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    return true;
+  } catch (err) {
+    // Quota exhaustion / private-browsing storage denial must not escape into a
+    // click handler and take the whole tree down.
+    console.error('PaperDeck: failed to persist notes', err);
+    return false;
   }
+}
+
+/** Pinned notes first, then most recently updated. */
+export function sortNotes(notes: NoteItem[]): NoteItem[] {
+  return [...notes].sort((a, b) => {
+    if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+    return b.updatedAt.localeCompare(a.updatedAt);
+  });
+}
+
+export function createNoteId(): string {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  return uuid ? `note-${uuid}` : `note-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function getTaskStats(body: string): { total: number; completed: number } {

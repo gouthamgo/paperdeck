@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Navbar } from '../components/Navbar';
 import { EdgeDeck } from '../components/EdgeDeck';
 import { DeskBoard } from '../components/DeskBoard';
@@ -8,9 +8,9 @@ import { NoteEditor } from '../components/NoteEditor';
 import { ShareNoteModal } from '../components/ShareNoteModal';
 import { ShortcutsModal } from '../components/ShortcutsModal';
 import { NoteItem, DeckViewMode, NOTE_COLORS } from '../types/note';
-import { getStoredNotes, saveNotes } from '../lib/noteStore';
+import { getStoredNotes, saveNotes, createNoteId } from '../lib/noteStore';
 import { paperSound } from '../lib/audio';
-import { ArrowRight, Layers, LayoutGrid, Sparkles, Pin } from 'lucide-react';
+import { LayoutGrid, Sparkles } from 'lucide-react';
 
 export default function HomePage() {
   const [notes, setNotes] = useState<NoteItem[]>([]);
@@ -23,32 +23,33 @@ export default function HomePage() {
     setNotes(getStoredNotes());
   }, []);
 
-  const handleUpdateNote = (updated: NoteItem) => {
-    const next = notes.map(n => n.id === updated.id ? updated : n);
-    setNotes(next);
-    saveNotes(next);
-    if (activeFocusNote?.id === updated.id) {
-      setActiveFocusNote(updated);
-    }
-  };
+  const handleUpdateNote = useCallback((updated: NoteItem) => {
+    setNotes(prev => {
+      const next = prev.map(n => (n.id === updated.id ? updated : n));
+      saveNotes(next);
+      return next;
+    });
+    setActiveFocusNote(prev => (prev?.id === updated.id ? updated : prev));
+  }, []);
 
-  const handleDeleteNote = (id: string) => {
-    const next = notes.filter(n => n.id !== id);
-    setNotes(next);
-    saveNotes(next);
-    if (activeFocusNote?.id === id) {
-      setActiveFocusNote(null);
-    }
-  };
+  const handleDeleteNote = useCallback((id: string) => {
+    setNotes(prev => {
+      const next = prev.filter(n => n.id !== id);
+      saveNotes(next);
+      return next;
+    });
+    setActiveFocusNote(prev => (prev?.id === id ? null : prev));
+    setShareModalNote(prev => (prev?.id === id ? null : prev));
+  }, []);
 
-  const handleNewNote = () => {
+  const handleNewNote = useCallback(() => {
     const randomColor = NOTE_COLORS[Math.floor(Math.random() * NOTE_COLORS.length)].name;
     const randomTilt = (Math.random() * 6 - 3);
 
     const newNote: NoteItem = {
-      id: `note-${Date.now()}`,
+      id: createNoteId(),
       title: 'New Note',
-      body: '☐ ',
+      body: '\u2610 ',
       colorName: randomColor,
       isPinned: false,
       isArchived: false,
@@ -57,31 +58,45 @@ export default function HomePage() {
       updatedAt: new Date().toISOString(),
     };
 
-    const next = [newNote, ...notes];
-    setNotes(next);
-    saveNotes(next);
+    setNotes(prev => {
+      const next = [newNote, ...prev];
+      saveNotes(next);
+      return next;
+    });
     setActiveFocusNote(newNote);
     paperSound.playPaperFanSound();
-  };
+  }, []);
+
+  const handleToggleDesk = useCallback(() => {
+    setViewMode(prev => (prev === 'desk' ? 'deck' : 'desk'));
+    paperSound.playPaperFanSound();
+  }, []);
 
   // Global Keyboard Shortcuts (⌥⌘N for New Note, ⌥⌘A for All Notes / Desk View)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // ⌥⌘N -> New Note
-      if (e.altKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+      if (e.repeat) return;
+
+      // e.code is the physical key, so these keep working on AZERTY/Dvorak/Cyrillic
+      // layouts and on macOS where ⌥ composes dead keys.
+      const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+
+      if (e.altKey && mod && e.code === 'KeyN') {
         e.preventDefault();
         handleNewNote();
+        return;
       }
 
-      // ⌥⌘A -> Toggle All Notes (Desk View)
-      if (e.altKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
+      if (e.altKey && mod && e.code === 'KeyA') {
         e.preventDefault();
-        setViewMode(prev => prev === 'desk' ? 'deck' : 'desk');
-        paperSound.playPaperFanSound();
+        handleToggleDesk();
+        return;
       }
 
-      // Esc -> Close focus note
-      if (e.key === 'Escape' && activeFocusNote) {
+      // Esc closes the focus editor only when no modal is stacked above it —
+      // each modal dismisses itself.
+      if (e.key === 'Escape' && activeFocusNote && !shareModalNote && !isShortcutsOpen) {
         setActiveFocusNote(null);
         paperSound.playClickSound();
       }
@@ -89,7 +104,24 @@ export default function HomePage() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [notes, activeFocusNote]);
+  }, [handleNewNote, handleToggleDesk, activeFocusNote, shareModalNote, isShortcutsOpen]);
+
+  // Native menu items and global hotkeys from the Electron main process.
+  const newNoteRef = useRef(handleNewNote);
+  const toggleDeskRef = useRef(handleToggleDesk);
+  newNoteRef.current = handleNewNote;
+  toggleDeskRef.current = handleToggleDesk;
+
+  useEffect(() => {
+    const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
+    if (!api) return;
+    const offNew = api.onTriggerNewNote(() => newNoteRef.current());
+    const offAll = api.onTriggerAllNotes(() => toggleDeskRef.current());
+    return () => {
+      offNew?.();
+      offAll?.();
+    };
+  }, []);
 
   return (
     <main className="min-h-screen flex flex-col justify-between desk-surface-bg relative overflow-x-hidden">
@@ -166,16 +198,21 @@ export default function HomePage() {
           onNewNote={handleNewNote}
           onShareNote={(note) => setShareModalNote(note)}
           onOpenAllNotes={() => setViewMode('desk')}
+          escapeEnabled={!activeFocusNote && !shareModalNote && !isShortcutsOpen}
         />
       </div>
 
       {/* FOCUS MODAL */}
       {activeFocusNote && (
         <div
-          onClick={() => setActiveFocusNote(null)}
+          onMouseDown={(e) => {
+            // click fires on the common ancestor of mousedown/mouseup, so a text
+            // drag that ends on the backdrop would otherwise close the editor.
+            if (e.target === e.currentTarget) setActiveFocusNote(null);
+          }}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn"
         >
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl">
+          <div className="w-full max-w-2xl">
             <NoteEditor
               note={activeFocusNote}
               onUpdate={handleUpdateNote}
@@ -204,7 +241,7 @@ export default function HomePage() {
       <footer className="w-full py-6 border-t border-desk-rule text-center text-xs font-mono text-ink-subtle">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>PaperDeck · Tactile paper notes at the edge of your screen</span>
-          <span>100% Offline-First · Encrypted local storage</span>
+          <span>100% Offline-First · Stored locally in your browser</span>
         </div>
       </footer>
     </main>

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, Command } from 'lucide-react';
 
 interface ShortcutsModalProps {
@@ -9,10 +9,29 @@ interface ShortcutsModalProps {
 }
 
 export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose }) => {
+  // Declared before the early return so hook order stays stable.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const shortcuts = [
     { key: '⌥⌘N', desc: 'Create new note instantly' },
+    { key: '⌥⌘A', desc: 'Toggle All Notes / Desk Board' },
     { key: '⌘T', desc: 'Toggle checkbox task on current line' },
     { key: '⌘.', desc: 'Cycle through 8 pastel paper colors' },
     { key: '⌘P', desc: 'Pin note so it stays open' },
@@ -21,10 +40,19 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn select-none">
+    <div
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Keyboard shortcuts"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn select-none"
+    >
       <div className="relative w-full max-w-md rounded-3xl bg-desk-surface border border-desk-rule p-6 sm:p-8 shadow-2xl flex flex-col gap-5">
         <button
           onClick={onClose}
+          aria-label="Close shortcuts"
           className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-black/10 text-ink-muted hover:text-ink transition-colors"
         >
           <X className="w-4 h-4" />

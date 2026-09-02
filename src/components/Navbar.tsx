@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DeckViewMode } from '../types/note';
 import { paperSound } from '../lib/audio';
 import { Volume2, VolumeX, Plus, Command, LayoutGrid, Layers, Maximize2, Minimize2 } from 'lucide-react';
@@ -32,13 +32,20 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
+  // The browser can leave fullscreen on its own (Esc, F11, window chrome), so the
+  // icon has to follow the document rather than an optimistic local guess.
+  useEffect(() => {
+    const sync = () => setIsFullscreen(!!document.fullscreenElement);
+    sync();
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
     } else {
       document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
     }
     paperSound.playClickSound();
   };
@@ -57,7 +64,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 PaperDeck
               </span>
               <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-desk-surface text-ink-muted border border-desk-rule">
-                v1.2
+                v1.0
               </span>
             </div>
           </div>
@@ -103,6 +110,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={toggleFullscreen}
             className="p-2 rounded-xl bg-desk-surface hover:bg-desk-surface/80 border border-desk-rule text-ink-muted hover:text-ink transition-colors cursor-pointer"
             title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Desk'}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
@@ -112,6 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={toggleSound}
             className="p-2 rounded-xl bg-desk-surface hover:bg-desk-surface/80 border border-desk-rule text-ink-muted hover:text-ink transition-colors cursor-pointer"
             title={isMuted ? 'Unmute paper sounds' : 'Mute paper sounds'}
+            aria-label={isMuted ? 'Unmute paper sounds' : 'Mute paper sounds'}
           >
             {isMuted ? <VolumeX className="w-4 h-4 text-rose-600" /> : <Volume2 className="w-4 h-4" />}
           </button>

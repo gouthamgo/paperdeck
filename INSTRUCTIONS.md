@@ -93,11 +93,28 @@ put in front of customers.
 
 ---
 
-## 🎨 5. Known Gaps
+## 🎨 5. App Icon
 
-* **No app icon.** There is no `build/icon.icns`, so the Dock, Finder, and DMG all
-  show the stock Electron atom. Add a 1024×1024 `build/icon.icns` and
-  `"icon": "build/icon.icns"` under `build.mac`.
+The icon is generated from source rather than checked in as a binary blob only:
+
+* `build/icon.html` — the artwork, plain HTML/CSS on the 824/1024 macOS icon grid.
+* `build/render-icon.js` — renders it to `build/icon.png` via Electron.
+* `build/make-icns.sh` — slices that into every required size and compiles
+  `build/icon.icns` with `iconutil`.
+
+Edit the HTML, then regenerate:
+
+```bash
+npm run icon
+```
+
+`build.mac.icon` points at `build/icon.icns`, so the next `npm run dist:mac`
+picks it up automatically.
+
+---
+
+## 🧩 6. Known Gaps
+
 * **`isArchived` is never set.** The field is read when filtering but nothing
   writes `true` to it — there is no archive action yet.
 * **Dark mode is scaffolded but unreachable.** `tailwind.config.js` sets

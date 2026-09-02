@@ -1,0 +1,184 @@
+<!doctype html>
+<!--
+  Source artwork for build/icon.icns — rendered to PNG by build/render-icon.js.
+  1024×1024 canvas with the 824×824 macOS icon grid, so the squircle lines up
+  with the rest of the Dock. Palette is PaperDeck's own desk + paper tokens.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html, body {
+        width: 1024px;
+        height: 1024px;
+        background: transparent;
+      }
+
+      .canvas {
+        width: 1024px;
+        height: 1024px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* macOS rounded-rect grid: 824 of 1024, continuous-corner radius ~180. */
+      .squircle {
+        position: relative;
+        width: 824px;
+        height: 824px;
+        border-radius: 185px;
+        background:
+          radial-gradient(700px 480px at 74% 4%, rgba(255, 255, 255, 0.75) 0%, transparent 62%),
+          radial-gradient(620px 460px at 12% 104%, rgba(160, 140, 110, 0.28) 0%, transparent 60%),
+          linear-gradient(160deg, #F6F2EA 0%, #EFEBE3 46%, #E4DECF 100%);
+        box-shadow:
+          0 26px 60px rgba(60, 48, 30, 0.30),
+          inset 0 3px 0 rgba(255, 255, 255, 0.85),
+          inset 0 0 0 3px rgba(214, 207, 192, 0.75);
+        overflow: hidden;
+      }
+
+      /* Faint ruled desk paper behind the cards. */
+      .rules {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          to bottom,
+          transparent 0px,
+          transparent 63px,
+          rgba(140, 131, 117, 0.14) 63px,
+          rgba(140, 131, 117, 0.14) 65px
+        );
+        mask-image: radial-gradient(circle at 50% 46%, #000 30%, transparent 76%);
+        -webkit-mask-image: radial-gradient(circle at 50% 46%, #000 30%, transparent 76%);
+      }
+
+      .stack {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .card {
+        position: absolute;
+        width: 404px;
+        height: 404px;
+        border-radius: 16px 16px 48px 16px;
+        box-shadow: 0 20px 44px rgba(60, 48, 30, 0.26);
+      }
+
+      /* Back cards peek out on either side to read as a fanned deck. */
+      .card.back-left {
+        background: linear-gradient(150deg, #FBCFA6 0%, #F6BE8B 100%);
+        transform: translate(-96px, 26px) rotate(-14deg);
+      }
+
+      .card.back-right {
+        background: linear-gradient(150deg, #BEDDFA 0%, #A6CEF6 100%);
+        transform: translate(96px, 16px) rotate(12deg);
+      }
+
+      .card.front {
+        background: linear-gradient(150deg, #FDEDA8 0%, #FCE795 55%, #F7DB72 100%);
+        transform: rotate(-3deg);
+        box-shadow: 0 26px 54px rgba(60, 48, 30, 0.32);
+        padding: 64px 50px 0 54px;
+      }
+
+      /* Curled bottom-right corner, same trick as the in-app .curled-corner. */
+      .card.front::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 84px;
+        height: 84px;
+        border-radius: 0 0 48px 0;
+        background: linear-gradient(135deg, transparent 50%, rgba(58, 48, 8, 0.16) 50%);
+      }
+
+      .task {
+        display: flex;
+        align-items: center;
+        gap: 26px;
+        margin-bottom: 40px;
+      }
+
+      .box {
+        width: 66px;
+        height: 66px;
+        flex: 0 0 66px;
+        border-radius: 16px;
+        border: 8px solid #3A3008;
+        position: relative;
+      }
+
+      /* Ticked box: a thick ink check drawn with two rotated bars. */
+      .box.done { background: #3A3008; }
+
+      .box.done::before,
+      .box.done::after {
+        content: '';
+        position: absolute;
+        background: #FCE795;
+        border-radius: 6px;
+      }
+
+      .box.done::before {
+        width: 10px;
+        height: 23px;
+        left: 10px;
+        top: 20px;
+        transform: rotate(-42deg);
+      }
+
+      .box.done::after {
+        width: 10px;
+        height: 42px;
+        left: 29px;
+        top: 4px;
+        transform: rotate(38deg);
+      }
+
+      .line {
+        height: 18px;
+        border-radius: 9px;
+        background: #3A3008;
+      }
+
+      .line.w1 { width: 176px; }
+      .line.w2 { width: 140px; opacity: 0.42; }
+      .line.w3 { width: 158px; opacity: 0.42; }
+    </style>
+  </head>
+  <body>
+    <div class="canvas">
+      <div class="squircle">
+        <div class="rules"></div>
+        <div class="stack">
+          <div class="card back-left"></div>
+          <div class="card back-right"></div>
+          <div class="card front">
+            <div class="task">
+              <div class="box done"></div>
+              <div class="line w1"></div>
+            </div>
+            <div class="task">
+              <div class="box"></div>
+              <div class="line w2"></div>
+            </div>
+            <div class="task">
+              <div class="box"></div>
+              <div class="line w3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

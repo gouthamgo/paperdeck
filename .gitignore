@@ -11,9 +11,11 @@
 /out/
 
 # production
-/build
 /dist/
 /out/
+
+# icon build intermediates (icon.icns and its HTML source are committed)
+/build/icon.iconset/
 
 # misc
 .DS_Store
